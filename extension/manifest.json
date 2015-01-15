@@ -1,0 +1,40 @@
+{
+  "manifest_version": 2,
+
+  "name": "Thumbs-preview for Youtube™",
+  "description": "Shows previews of Youtube-videos by hovering on thumbnails.",
+  "version": "0.1.0",
+
+  "author": "Seb Nilsson",
+  "homepage_url": "http://sebnilsson.com",
+
+  "permissions": [
+    "http://*.youtube.com/*",
+    "https://*.youtube.com/*"
+  ],
+
+  "icons": {
+    "16": "icon16.png",
+    "48": "icon48.png",
+    "128": "icon128.png"
+  },
+
+  "background": {
+    "scripts": [
+      "background.js"
+    ],
+    "persistent": false
+  },
+
+  "content_scripts": [{
+    "js": [
+      "content.js"
+    ],
+    "matches": [
+      "http://*.youtube.com/*",
+      "https://*.youtube.com/*"
+    ]
+  }],
+
+  "content_security_policy": "script-src 'self' https://www.google-analytics.com; object-src 'self'"
+}
