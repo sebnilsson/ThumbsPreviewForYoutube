@@ -2,8 +2,8 @@
   "manifest_version": 2,
 
   "name": "Thumbs-preview for Youtube™",
-  "description": "Shows previews of Youtube-videos by hovering on thumbnails.",
-  "version": "0.2.0",
+  "description": "Shows multiple previews of a Youtube-video, when hovering on video-thumbnails on Youtube.com.",
+  "version": "0.2.1",
 
   "author": "Seb Nilsson",
   "homepage_url": "http://sebnilsson.com",
