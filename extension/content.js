@@ -1,128 +1,147 @@
-var lastPreviewEl,
-    protocol = location.protocol,
-    elSelectors =
-        // Shared
-        '.yt-thumb-clip img, ' +
-        '.yt-lockup-title a, ' +
-        // Home
-        '.video-thumb img, ' +
-        '.yt-ui-ellipsis-wrapper, ' +
-        // Player
-        '.thumb-wrapper a, ' +
-        '.thumb-wrapper img, ' +
-        '.video-list-item a, ' +
-        // User
-        '.feed-item-snippet img, ' +
-        '.feed-item-snippet .snippet-metadata b a, ' +
-        '.lohp-media-object-content a, ' +
-        '.lohp-video-link, ' +
-        // Channel
-        '.channels-content-item .yt-thumb-clip img, ' +
-        '.channels-content-item .yt-lockup-content span, ' +
-        // Playlist -- TODO: Find correct parent
-        '.pl-video-thumbnail .yt-thumb-clip img, ' +
-        '.pl-video-thumbnail .pl-video-title a',
-    findImageParentSelector =  'li',
-    findImageSelector = '.yt-thumb-clip img';
+console.log = function() {}; // Disable console.log for release
 
-//console.log('elSelectors:', elSelectors);
+var protocol = location.protocol,
+    originalSrcKey = 'original-src',
+    aSelector = 'a[href*="watch?v="]',
+    aSelectorNoRecurse = `${aSelector}:not(:has(img))`,
+    imgSelector = 'img[src*="i.ytimg.com/"]',
+    imagePreviewInterval = 1000,
+    intervalIdKey = 'interval-id',
+    $previewImgEls = [];
 
-document.addEventListener('mouseover', handleMouseOver);
+$('body').on('mouseenter', imgSelector, handleImageMouseEnter);
+$('body').on('mouseenter', aSelectorNoRecurse, handleLinkMouseEnter);
 
-function findImageEl(element) {
-    var parentEl = findParent(element, findImageParentSelector);
-    
-    return parentEl ? parentEl.querySelectorAll(findImageSelector)[0] : undefined;
+$('body').on('click', imgSelector, function() {
+    handleMouseLeave();
+});
+$('body').on('click', aSelectorNoRecurse, function() {
+    handleMouseLeave();    
+});
+
+function handleImageMouseEnter(e) {
+    var $img = $(e.currentTarget);
+    var $a = $img.closest(aSelector);
+    var videoId = getVideoId($a);
+
+    console.log('handleImageMouseEnter');
+
+    handleMouseEnter($img, $img, $a, videoId);
 }
 
-function findParent(element, parentSelector) {
-    var parentEl = element ? element.parentNode : undefined;
-    if (!parentEl) {
-        return undefined;
+function handleLinkMouseEnter(e) {
+    var $a = $(e.currentTarget);
+    var videoId = getVideoId($a);
+    if (!videoId) {
+        return;
     }
 
-    if (parentEl.matches(parentSelector)) {
-        return parentEl;
+    var $img = $(`img[src*="${videoId}"]`).first();
+
+    console.log('handleLinkMouseEnter');
+
+    handleMouseEnter($a, $img, $a, videoId);
+}
+
+function handleMouseEnter($enterEl, $img, $a, videoId) {
+    if (!$enterEl || !$enterEl.length || !$img || !$img.length || !$a || !$a.length || !videoId) {
+        return;
     }
 
-    return findParent(parentEl, parentSelector);
+    console.log('handleMouseEnter');
+    console.log('- $enterEl: ', $enterEl);
+    console.log('- $img: ', $img);
+    console.log('- $a: ', $a);
+    console.log('- videoId: ', videoId);
+
+    var originalSrc = $img.attr('src');
+
+    $img.data(originalSrcKey, originalSrc);
+
+    startPreview($enterEl, $img, videoId);
+   
+    $enterEl.one('mouseleave', function() {
+        handleMouseLeave($img);
+    });
+}
+
+function handleMouseLeave() {
+    console.log('handleMouseLeave');
+
+    var len = $previewImgEls.length;
+    for (var i = 0; i < len; i++) {
+        var $img = $previewImgEls[i],
+            intervalId = $img.data(intervalIdKey),
+            originalSrc = $img.data(originalSrcKey);
+
+        clearInterval(intervalId);
+        console.log('clearInterval:', intervalId);
+
+        $img.attr('src', originalSrc);
+    }
+
+    $previewImgEls = [];
 }
 
 function getPreviewUrls(videoId) {
     var previewUrls = [];
     for (var i = 0; i < 4; i++) {
-        var previewUrl = protocol + '//img.youtube.com/vi/' + videoId + '/' + i + '.jpg';
+        var previewUrl = `${protocol}//img.youtube.com/vi/${videoId}/${i}.jpg`;
         previewUrls.push(previewUrl);
     }
     return previewUrls;
 }
 
-function getVideoId(imgSrc) {
-    var matches = imgSrc ? imgSrc.match(/.*\/vi.*\/(.*)\/.*\..*/) : undefined;
-    return matches ? matches[1] : undefined;
-}
+function getVideoId($a) {
+    var videoId = $a.data('videoId');
+    if (videoId) {
+        return videoId;
+    }
 
-function handleMouseOver(e) {
-    var el = e.srcElement;
-    if (!el.matches(elSelectors)) {
-        //console.log('el does not match: ', el);
+    var href = $a ? $a.attr('href') : undefined;
+    var matches = href ? href.match(/\/?watch\?v=(.*)/i) : undefined;
+
+    if (!matches || matches.length < 2) {
         return;
     }
 
-    var imgEl = (el.matches('img')) ? el : findImageEl(el);
-    if (!el || !imgEl) {
-        return;
-    }
-
-    if (lastPreviewEl) {
-        var mouseoutEvent = new CustomEvent('mouseout');
-        lastPreviewEl.dispatchEvent(mouseoutEvent);
-    }
-
-    lastPreviewEl = el;
-    startPreview(el, imgEl);
-}
-
-function startPreview(hoverEl, imgEl) {
-    var intervalId,
-        viewIndex = 1;
-
-    function showNextPreview(previewUrls) {
-        var currentPreviewUrl = previewUrls[viewIndex];
-
-        imgEl.setAttribute('src', currentPreviewUrl);
-
-        viewIndex = (viewIndex > 2) ? 0 : (viewIndex + 1);
-    }
-
-    function endPreview() {
-        var originalSrc = imgEl.getAttribute('data-original-src');
-        imgEl.setAttribute('src', originalSrc);
-
-        clearInterval(intervalId);
-        hoverEl.removeEventListener('mouseout', endPreview);
-    }
-
-    var src = imgEl.getAttribute('src');
-    var videoId = getVideoId(src);
+    videoId = matches[1];
     if (!videoId) {
         return;
     }
 
-    var previewUrls = getPreviewUrls(videoId);
+    $a.data('videoId', videoId);
+    return videoId;
+}
 
-    imgEl.setAttribute('data-original-src', src);
+function startPreview($enterEl, $img, videoId) {
+    var viewIndex = 1,
+        previewUrls = getPreviewUrls(videoId);
 
-    showNextPreview(previewUrls);
+    showNextPreview();
 
-    intervalId = setInterval(function() {
-        showNextPreview(previewUrls);
-    }, 1000);
+    var intervalId = setInterval(function() {
+        showNextPreview();
+    }, imagePreviewInterval);
 
-    hoverEl.addEventListener('mouseout', endPreview);
+    console.log('setInterval:', intervalId);
+
+    $img.data(intervalIdKey, intervalId);
+
+    $previewImgEls.push($img);
 
     chrome.runtime.sendMessage({
         eventName: 'ThumbsPreviewForYoutube_Youtube_StartPreview',
         videoId: videoId
     });
+
+    function showNextPreview() {
+        var nextPreviewUrl = previewUrls[viewIndex];
+
+        console.log('showNextPreview - viewIndex:', viewIndex);
+
+        $img.attr('src', nextPreviewUrl);
+
+        viewIndex = (viewIndex > 2) ? 0 : (viewIndex + 1);
+    }
 }

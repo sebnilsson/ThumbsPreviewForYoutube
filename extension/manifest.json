@@ -3,7 +3,7 @@
 
   "name": "Thumbs-preview for Youtube™",
   "description": "Shows previews of Youtube-videos by hovering on thumbnails.",
-  "version": "0.1.0",
+  "version": "0.2.0",
 
   "author": "Seb Nilsson",
   "homepage_url": "http://sebnilsson.com",
@@ -28,6 +28,7 @@
 
   "content_scripts": [{
     "js": [
+      "jquery-2.2.0.min.js",
       "content.js"
     ],
     "matches": [
